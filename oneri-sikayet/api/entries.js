@@ -1,6 +1,6 @@
 // api/entries.js
 // Google Sheets'ten tüm kayıtları okur (sadece yönetici paneli için)
-
+import crypto from "crypto";
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
