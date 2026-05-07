@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anonim Öneri & Şikayet Kutusu</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --border: #e2e0d8;
+      --border-strong: #c8c6bc;
+      --text: #1a1a18;
+      --text-muted: #6b6b67;
+      --text-faint: #9b9b96;
+      --blue: #185FA5;
+      --blue-bg: #e6f1fb;
+      --blue-text: #0c447c;
+      --green: #1D9E75;
+      --green-bg: #e1f5ee;
+      --green-text: #085041;
+      --red: #A32D2D;
+      --red-bg: #fcebeb;
+      --red-text: #501313;
+      --amber: #BA7517;
+      --amber-bg: #faeeda;
+      --amber-text: #412402;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+    body { font-family: -apple-system, 'Helvetica Neue', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+
+    /* Header */
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+    .logo span { color: var(--blue); }
+    .anon-pill { font-size: 11px; background: var(--green-bg); color: var(--green-text); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 24px; }
+    .tab { padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    /* Main */
+    .main { max-width: 680px; margin: 0 auto; padding: 28px 16px; }
+
+    /* Panel */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Form Card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .card + .card { margin-top: 16px; }
+    .section-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+    @media (max-width: 480px) { .cat-grid { grid-template-columns: repeat(2, 1fr); } }
+    .cat-btn { padding: 10px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--text-muted); text-align: center; transition: all 0.15s; line-height: 1.4; }
+    .cat-btn:hover:not(.selected) { border-color: var(--border-strong); background: #eeeee9; }
+    .cat-btn.selected { border-color: var(--blue); background: var(--blue-bg); color: var(--blue-text); font-weight: 600; }
+    .field-row { margin-bottom: 16px; }
+    .field-row label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--text); resize: vertical; background: var(--surface); transition: border-color 0.15s; line-height: 1.6; }
+    textarea:focus { outline: none; border-color: var(--blue); }
+    textarea::placeholder { color: var(--text-faint); }
+    .char-count { font-size: 11px; color: var(--text-faint); text-align: right; margin-top: 4px; }
+    .submit-btn { width: 100%; padding: 13px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+    .submit-btn:hover { background: var(--blue-text); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Success */
+    .success-card { text-align: center; padding: 40px 24px; display: none; }
+    .success-icon { font-size: 48px; margin-bottom: 12px; }
+    .success-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .success-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+    .ref-code { display: inline-block; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 20px; font-family: monospace; font-size: 15px; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+    .ref-note { font-size: 12px; color: var(--text-faint); margin-bottom: 24px; }
+    .reset-btn { padding: 10px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .reset-btn:hover { background: var(--bg); }
+
+    /* Admin */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    @media (max-width: 500px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+    .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; }
+    .metric-label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .metric-val { font-size: 26px; font-weight: 600; }
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+    .filter-bar input, .filter-bar select { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); flex: 1; min-width: 120px; }
+    .filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: var(--blue); }
+    .export-btn { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 13px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+    .export-btn:hover { background: var(--bg); }
+    .entries { display: flex; flex-direction: column; gap: 10px; }
+    .entry { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+    .entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+    .entry-date { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+    .entry-text { font-size: 14px; line-height: 1.65; color: var(--text); }
+    .entry-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+    .entry-id { font-family: monospace; font-size: 11px; color: var(--text-faint); }
+    .status-select { font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); cursor: pointer; color: var(--text-muted); }
+    .no-entries { text-align: center; padding: 48px; color: var(--text-faint); font-size: 14px; }
+    .bar-chart { margin-bottom: 20px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .bar-name { font-size: 12px; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-n { font-size: 12px; color: var(--text-faint); width: 20px; text-align: right; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: var(--radius-sm); font-size: 13px; transition: transform 0.3s; z-index: 100; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.7); z-index: 50; align-items: center; justify-content: center; font-size: 14px; color: var(--text-muted); }
+    .loading-overlay.show { display: flex; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">öneri<span>&</span>şikayet</div>
+  <span class="anon-pill">🔒 Kimliğiniz gizlidir</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" id="tab-form" onclick="switchTab('form')">Mesaj Gönder</button>
+  <button class="tab" id="tab-admin" onclick="switchTab('admin')">Yönetici Paneli</button>
+</div>
+
+<div class="main">
+
+  <!-- FORM PANEL -->
+  <div class="panel active" id="panel-form">
+    <div class="card" id="form-card">
+      <div class="section-label">Kategori Seçin</div>
+      <div class="cat-grid">
+        <button class="cat-btn" onclick="selectCat(this,'Öneri')">💡<br>Öneri</button>
+        <button class="cat-btn" onclick="selectCat(this,'Şikayet')">⚠️<br>Şikayet</button>
+        <button class="cat-btn" onclick="selectCat(this,'Takdir')">⭐<br>Takdir</button>
+        <button class="cat-btn" onclick="selectCat(this,'İyileştirme')">🔧<br>İyileştirme</button>
+        <button class="cat-btn" onclick="selectCat(this,'Soru')">❓<br>Soru</button>
+        <button class="cat-btn" onclick="selectCat(this,'Diğer')">📌<br>Diğer</button>
+      </div>
+      <div class="field-row">
+        <label for="msg">Mesajınız <span style="color:var(--text-faint);font-weight:400">(isim yazmayın, tamamen anonimdir)</span></label>
+        <textarea id="msg" placeholder="Düşüncelerinizi buraya özgürce yazabilirsiniz..." oninput="updateChar()"></textarea>
+        <div class="char-count"><span id="char-n">0</span> karakter</div>
+      </div>
+      <button class="submit-btn" id="send-btn" onclick="submitForm()">🔒 Anonim Olarak Gönder</button>
+    </div>
+    <div class="card success-card" id="success-card">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Mesajınız iletildi!</div>
+      <div class="success-sub">Geri bildiriminiz için teşekkürler. Hiçbir kişisel bilginiz kaydedilmedi.</div>
+      <div class="ref-code" id="ref-code-display"></div>
+      <div class="ref-note">Referans kodunuzu not alabilirsiniz</div>
+      <button class="reset-btn" onclick="resetForm()">Yeni mesaj gönder</button>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div class="panel" id="panel-admin">
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:14px">Özet</div>
+      <div class="metrics" id="metrics"></div>
+      <div class="section-label" style="margin-bottom:10px;margin-top:4px">Kategori Dağılımı</div>
+      <div class="bar-chart" id="bar-chart"></div>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="Mesajlarda ara..." oninput="renderEntries()">
+      <select id="cat-f" onchange="renderEntries()">
+        <option value="">Tüm kategoriler</option>
+        <option>Öneri</option><option>Şikayet</option><option>Takdir</option>
+        <option>İyileştirme</option><option>Soru</option><option>Diğer</option>
+      </select>
+      <select id="status-f" onchange="renderEntries()">
+        <option value="">Tüm durumlar</option>
+        <option>Bekliyor</option><option>İnceleniyor</option><option>Çözüldü</option>
+      </select>
+      <button class="export-btn" onclick="exportCSV()">⬇ CSV İndir</button>
+      <button class="export-btn" onclick="loadEntries()">↻ Yenile</button>
+    </div>
+    <div class="entries" id="entries-list">
+      <div class="no-entries">Yükleniyor...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loading">Gönderiliyor...</div>
+
+<script>
+const CAT_COLORS = {
+  'Öneri':      { bg:'#e6f1fb', color:'#0c447c' },
+  'Şikayet':    { bg:'#fcebeb', color:'#501313' },
+  'Takdir':     { bg:'#e1f5ee', color:'#085041' },
+  'İyileştirme':{ bg:'#faeeda', color:'#412402' },
+  'Soru':       { bg:'#f1efe8', color:'#444441' },
+  'Diğer':      { bg:'#f1efe8', color:'#444441' },
+};
+const BAR_COLORS = { 'Öneri':'#185FA5','Şikayet':'#A32D2D','Takdir':'#1D9E75','İyileştirme':'#BA7517','Soru':'#5F5E5A','Diğer':'#888780' };
+let selectedCat = '';
+let entries = [];
+
+function switchTab(t) {
+  document.getElementById('tab-form').classList.toggle('active', t==='form');
+  document.getElementById('tab-admin').classList.toggle('active', t==='admin');
+  document.getElementById('panel-form').classList.toggle('active', t==='form');
+  document.getElementById('panel-admin').classList.toggle('active', t==='admin');
+  if (t==='admin') loadEntries();
+}
+function selectCat(el, cat) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = cat;
+}
+function updateChar() {
+  document.getElementById('char-n').textContent = document.getElementById('msg').value.length;
+}
+function genRef() {
+  return '#' + Math.random().toString(36).substring(2,7).toUpperCase();
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function submitForm() {
+  const txt = document.getElementById('msg').value.trim();
+  if (!selectedCat) { showToast('Lütfen bir kategori seçin'); return; }
+  if (txt.length < 10) { showToast('Lütfen en az 10 karakter yazın'); return; }
+  const ref = genRef();
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('send-btn').disabled = true;
+  try {
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: selectedCat, message: txt, ref })
+    });
+    if (!res.ok) throw new Error('Sunucu hatası');
+    document.getElementById('ref-code-display').textContent = ref;
+    document.getElementById('form-card').style.display = 'none';
+    document.getElementById('success-card').style.display = 'block';
+  } catch(e) {
+    showToast('Hata oluştu, tekrar deneyin');
+    document.getElementById('send-btn').disabled = false;
+  } finally {
+    document.getElementById('loading').classList.remove('show');
+  }
+}
+
+function resetForm() {
+  document.getElementById('msg').value = '';
+  document.getElementById('char-n').textContent = '0';
+  selectedCat = '';
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('form-card').style.display = 'block';
+  document.getElementById('success-card').style.display = 'none';
+  document.getElementById('send-btn').disabled = false;
+}
+
+async function loadEntries() {
+  document.getElementById('entries-list').innerHTML = '<div class="no-entries">Yükleniyor...</div>';
+  try {
+    const res = await fetch('/api/entries');
+    entries = await res.json();
+    renderMetrics();
+    renderChart();
+    renderEntries();
+  } catch(e) {
+    document.getElementById('entries-list').innerHTML = '<div class="no-entries">Veriler yüklenemedi. API bağlantısını kontrol edin.</div>';
+  }
+}
+
+function renderMetrics() {
+  const total = entries.length;
+  const bek = entries.filter(e=>e.status==='Bekliyor').length;
+  const coz = entries.filter(e=>e.status==='Çözüldü').length;
+  const sik = entries.filter(e=>e.category==='Şikayet').length;
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Toplam</div><div class="metric-val">${total}</div></div>
+    <div class="metric"><div class="metric-label">Bekliyor</div><div class="metric-val" style="color:#A32D2D">${bek}</div></div>
+    <div class="metric"><div class="metric-label">Çözüldü</div><div class="metric-val" style="color:#1D9E75">${coz}</div></div>
+    <div class="metric"><div class="metric-label">Şikayet</div><div class="metric-val" style="color:#BA7517">${sik}</div></div>
+  `;
+}
+function renderChart() {
+  const cats = ['Öneri','Şikayet','Takdir','İyileştirme','Soru','Diğer'];
+  const counts = cats.map(c => entries.filter(e=>e.category===c).length);
+  const max = Math.max(...counts, 1);
+  document.getElementById('bar-chart').innerHTML = cats.map((c,i) => `
+    <div class="bar-row">
+      <span class="bar-name">${c}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(counts[i]/max*100)}%;background:${BAR_COLORS[c]}"></div></div>
+      <span class="bar-n">${counts[i]}</span>
+    </div>`).join('');
+}
+function renderEntries() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const catF = document.getElementById('cat-f').value;
+  const stF = document.getElementById('status-f').value;
+  let list = entries.filter(e => {
+    if (catF && e.category !== catF) return false;
+    if (stF && e.status !== stF) return false;
+    if (search && !e.message.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  if (!list.length) {
+    document.getElementById('entries-list').innerHTML = '<div class="no-entries">Kayıt bulunamadı</div>';
+    return;
+  }
+  const cc = CAT_COLORS;
+  document.getElementById('entries-list').innerHTML = list.map((e, idx) => {
+    const c = cc[e.category] || cc['Diğer'];
+    const realIdx = entries.indexOf(e);
+    return `<div class="entry">
+      <div class="entry-top">
+        <span class="tag" style="background:${c.bg};color:${c.color}">${e.category}</span>
+        <span style="font-size:12px;color:#9b9b96">Anonim</span>
+        <span class="entry-date">${e.date}</span>
+      </div>
+      <div class="entry-text">${e.message}</div>
+      <div class="entry-bottom">
+        <span class="entry-id">${e.ref || ''}</span>
+        <select class="status-select" onchange="updateStatus(${realIdx}, this.value)">
+          <option ${e.status==='Bekliyor'?'selected':''}>Bekliyor</option>
+          <option ${e.status==='İnceleniyor'?'selected':''}>İnceleniyor</option>
+          <option ${e.status==='Çözüldü'?'selected':''}>Çözüldü</option>
+        </select>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateStatus(idx, val) {
+  entries[idx].status = val;
+  const e = entries[idx];
+  try {
+    await fetch('/api/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: e.ref, status: val, rowIndex: e.rowIndex })
+    });
+    showToast('Durum güncellendi');
+  } catch(err) { showToast('Güncelleme hatası'); }
+  renderMetrics();
+  renderEntries();
+}
+
+function exportCSV() {
+  if (!entries.length) { showToast('Dışa aktarılacak veri yok'); return; }
+  const header = ['Referans','Kategori','Mesaj','Tarih','Durum'];
+  const rows = entries.map(e => [e.ref||'', e.category, '"'+e.message.replace(/"/g,'""')+'"', e.date, e.status]);
+  const csv = '\uFEFF' + [header,...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = 'sikayet_raporu_'+new Date().toLocaleDateString('tr-TR').replace(/\./g,'-')+'.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
