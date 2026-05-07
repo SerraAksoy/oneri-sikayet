@@ -47,47 +47,59 @@ export default async function handler(req, res) {
   }
 }
 
-// Service Account ile Google OAuth2 token al
 async function getAccessToken(serviceAccountJson) {
+  if (!serviceAccountJson) {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY eksik");
+  }
+
   const sa = JSON.parse(serviceAccountJson);
   const now = Math.floor(Date.now() / 1000);
 
-  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({
+  const base64url = (input) =>
+    Buffer.from(JSON.stringify(input))
+      .toString("base64")
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const header = base64url({ alg: "RS256", typ: "JWT" });
+
+  const payload = base64url({
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-    aud: 'https://oauth2.googleapis.com/token',
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
-  }));
+  });
 
-  const jwtUnsigned = `${header}.${payload}`;
-  const privateKey = sa.private_key;
+  const unsignedJwt = `${header}.${payload}`;
 
-  // Vercel Edge'de crypto.subtle ile imzala
-  const keyData = privateKey
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\n/g, '');
+  const privateKey = sa.private_key.replace(/\\n/g, "\n");
 
-  const binaryKey = Uint8Array.from(atob(keyData), c => c.charCodeAt(0));
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', binaryKey.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign']
-  );
+  const signature = crypto
+    .createSign("RSA-SHA256")
+    .update(unsignedJwt)
+    .sign(privateKey, "base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
 
-  const encoder = new TextEncoder();
-  const signatureBuffer = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, encoder.encode(jwtUnsigned));
-  const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-  const jwt = `${jwtUnsigned}.${signature}`;
+  const jwt = `${unsignedJwt}.${signature}`;
 
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
   });
 
   const tokenData = await tokenResponse.json();
+
+  if (!tokenResponse.ok) {
+    throw new Error("Google token hatası: " + JSON.stringify(tokenData));
+  }
+
   return tokenData.access_token;
 }
